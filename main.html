@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Hypergraph Studio</title>
+<style>
+:root{
+  --bg:#0b1020; --panel:#121a2d; --panel2:#17213a; --border:#2b3858;
+  --text:#e9eefb; --muted:#9eaccb; --accent:#67b7ff; --accent2:#8d7cff;
+  --good:#48d597; --warn:#ffc857; --danger:#ff6b7a;
+  --shadow:0 14px 40px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(135deg,#080d19,#10182a 55%,#0c1424);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.app{display:grid;grid-template-columns:360px 1fr;min-height:100vh}
+.sidebar{padding:18px;border-right:1px solid var(--border);background:rgba(10,16,30,.94);overflow:auto;max-height:100vh}
+.brand{font-size:21px;font-weight:800;margin-bottom:4px}
+.subtitle{font-size:12px;color:var(--muted);margin-bottom:16px}
+.card{background:linear-gradient(180deg,rgba(25,35,59,.96),rgba(16,25,44,.96));border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card h3{font-size:13px;margin:0 0 9px}
+label{display:block;font-size:11px;color:var(--muted);margin:9px 0 5px}
+textarea,input,select,button{font:inherit}
+textarea,input,select{width:100%;background:#0b1324;color:var(--text);border:1px solid #33415f;border-radius:9px;padding:9px;outline:none}
+textarea:focus,input:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:82px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+button{border:0;border-radius:9px;padding:9px 11px;color:#fff;background:#263552;cursor:pointer;font-weight:700}
+button:hover{filter:brightness(1.12)}
+button.primary{background:linear-gradient(135deg,#3d8fe8,#7667ed)}
+button.good{background:#187b58}
+button.warn{background:#8a6410}
+button.danger{background:#8c3042}
+button.ghost{background:#1b2740}
+.row{display:flex;gap:7px;align-items:center}
+.row>*{flex:1}
+.small{font-size:11px;color:var(--muted);line-height:1.45}
+kbd{background:#0a1120;border:1px solid #34425e;border-radius:5px;padding:1px 5px;font-size:10px}
+.toolbar{display:flex;flex-wrap:wrap;gap:7px;padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(10,16,30,.84);backdrop-filter:blur(10px);position:sticky;top:0;z-index:4}
+.toolbar button{padding:7px 10px;font-size:12px}
+.main{min-width:0;display:flex;flex-direction:column;height:100vh}
+.workspace{flex:1;display:grid;grid-template-columns:minmax(420px,1fr) 340px;min-height:0}
+.viz-wrap{position:relative;min-width:0;min-height:0;background:
+ radial-gradient(circle at 50% 50%,rgba(64,101,166,.12),transparent 48%),
+ linear-gradient(180deg,#0c1424,#09101d)}
+#svg{width:100%;height:100%;display:block;cursor:default}
+.sideinfo{border-left:1px solid var(--border);overflow:auto;padding:12px;background:rgba(13,20,35,.9)}
+.tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.tabs button{font-size:11px;padding:7px 9px}
+.tabs button.active{background:#36527d}
+.panel{display:none}.panel.active{display:block}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.stat{background:#0c1424;border:1px solid #293653;border-radius:9px;padding:9px}
+.stat b{display:block;font-size:18px}.stat span{font-size:10px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{padding:6px 5px;border-bottom:1px solid #293653;text-align:left;vertical-align:top}
+th{color:#b7c5e2;font-weight:700}
+.badge{display:inline-block;padding:2px 6px;border-radius:99px;background:#263552;font-size:10px}
+.badge.good{background:#174e3b;color:#7ff0c0}.badge.warn{background:#5a4210;color:#ffd66e}.badge.bad{background:#5a202b;color:#ff9ba7}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)}
+.swatch{width:10px;height:10px;border-radius:3px}
+.help{padding:8px;background:#0b1425;border:1px solid #263451;border-radius:9px;font-size:10px;color:var(--muted);line-height:1.5}
+.search-hit{filter:drop-shadow(0 0 8px #fff)}
+.node{transition:opacity .15s}.edge{transition:opacity .15s}
+svg text{user-select:none}
+.matrix{overflow:auto;max-height:520px}
+.matrix table{font-size:9px;white-space:nowrap}
+.matrix td,.matrix th{text-align:center;padding:4px}
+.matrix .rowhead{text-align:left;position:sticky;left:0;background:#111a2c}
+.footer-note{font-size:10px;color:#7483a3;margin-top:8px}
+.toggle{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);margin-top:8px}
+.toggle input{width:auto}
+@media(max-width:1050px){
+ .app{grid-template-columns:300px 1fr}.workspace{grid-template-columns:1fr 290px}
+}
+@media(max-width:820px){
+ .app{display:block}.sidebar{max-height:none}.main{height:auto;min-height:900px}.workspace{grid-template-columns:1fr}.sideinfo{border-left:0;border-top:1px solid var(--border);min-height:400px}.viz-wrap{height:650px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">Hypergraph Studio</div>
+  <div class="subtitle">Interactive visualization, permutation analysis, automorphisms & export — no libraries.</div>
+
+  <div class="card">
+    <h3>1. Hyperedges</h3>
+    <label>Edge list — one hyperedge per line</label>
+    <textarea id="edgeInput">(0,1,2,11)
+(0,3,5,6)
+(0,7,9,10)
+(1,3,4,10)
+(1,6,7,8)
+(2,3,8,9)
+(2,4,5,7)
+(4,6,9,11)
+(5,8,10,11)</textarea>
+    <label>Hyperedge labels — comma separated</label>
+    <input id="labelInput" value="H1,H2,H3,H4,H5,H6,H7,H8,H9">
+    <div class="row" style="margin-top:9px">
+      <button class="primary" id="generateBtn">Generate</button>
+      <button id="sampleBtn">Sample</button>
+    </div>
+    <div class="small" style="margin-top:7px">Vertices are inferred automatically. Vertex IDs should be consecutive integers starting at 0.</div>
+  </div>
+
+  <div class="card">
+    <h3>2. Permutation</h3>
+    <label>Cycle notation</label>
+    <input id="permInput" value="1,2,3;5,7">
+    <div class="help" style="margin-top:7px"><b>Example:</b> <kbd>1,2,3</kbd> means 1→2→3→1. Separate independent cycles with <kbd>;</kbd>. Unmentioned vertices stay fixed.</div>
+    <div class="row" style="margin-top:9px">
+      <button class="primary" id="applyBtn">Animate</button>
+      <button id="previewBtn">Preview</button>
+      <button id="reverseBtn">Reverse</button>
+    </div>
+    <div class="row" style="margin-top:7px">
+      <button id="powerBtn">Power</button>
+      <input id="powerInput" type="number" value="2" min="-20" max="20" step="1">
+    </div>
+    <label>Animation speed</label>
+    <input id="speedInput" type="range" min="400" max="3500" value="1600">
+    <div class="small"><span id="speedValue">1.60 s</span> · Vertex identity, edge identity, label and color remain attached.</div>
+  </div>
+
+  <div class="card">
+    <h3>3. View</h3>
+    <div class="row">
+      <button id="zoomOut">−</button><button id="zoomReset">Reset</button><button id="zoomIn">+</button>
+    </div>
+    <div class="row" style="margin-top:7px">
+      <button id="layoutBtn">Re-layout</button>
+      <button id="compareBtn">Compare</button>
+    </div>
+    <label>Visualization mode</label>
+    <select id="modeSelect">
+      <option value="hull">Hyperedge hulls</option>
+      <option value="radial">Radial</option>
+      <option value="incidence">Incidence graph</option>
+    </select>
+    <div class="toggle"><input type="checkbox" id="showLabels" checked><span>Show vertex / edge labels</span></div>
+    <div class="toggle"><input type="checkbox" id="showFixed"><span>Highlight fixed vertices</span></div>
+    <div class="toggle"><input type="checkbox" id="showMoved"><span>Highlight moved vertices</span></div>
+  </div>
+
+  <div class="card">
+    <h3>4. Search & selection</h3>
+    <input id="searchInput" placeholder="Search vertex or hyperedge label…">
+    <div class="row" style="margin-top:7px">
+      <button id="clearSelection">Clear</button>
+      <button id="neighborsBtn">Neighbors</button>
+    </div>
+    <div class="small" style="margin-top:7px">Click a vertex to highlight incident hyperedges. Click a hyperedge to show its members.</div>
+  </div>
+
+  <div class="card">
+    <h3>5. Export / data</h3>
+    <div class="row"><button id="svgExport">Export SVG</button><button id="jsonExport">Export JSON</button></div>
+    <div class="row" style="margin-top:7px"><button id="jsonImportBtn">Import JSON</button><button id="pngExport">Export PNG</button></div>
+    <input id="jsonFile" type="file" accept=".json" style="display:none">
+  </div>
+</aside>
+
+<main class="main">
+  <div class="toolbar">
+    <button class="ghost" id="fitBtn">Fit</button>
+    <button class="ghost" id="statsBtn">Statistics</button>
+    <button class="ghost" id="matrixBtn">Incidence Matrix</button>
+    <button class="ghost" id="spectraBtn">Banerjee Spectrum</button>
+    <button class="ghost" id="intersectionBtn">Intersections</button>
+    <button class="ghost" id="autoBtn">Automorphism Check</button>
+    <button class="ghost" id="isoBtn">Canonical Signature</button>
+    <button class="ghost" id="presentationBtn">Presentation Mode</button>
+  </div>
+  <div class="workspace">
+    <div class="viz-wrap" id="vizWrap">
+      <svg id="svg" viewBox="0 0 900 700" aria-label="Hypergraph visualization">
+        <g id="scene"></g>
+      </svg>
+    </div>
+    <aside class="sideinfo">
+      <div class="tabs">
+        <button class="active" data-tab="overview">Overview</button>
+        <button data-tab="perm">Permutation</button>
+        <button data-tab="analysis">Analysis</button>
+        <button data-tab="matrix">Matrix</button>
+        <button data-tab="spectra">Spectra</button>
+        <button data-tab="compare">Compare</button>
+      </div>
+      <div id="overview" class="panel active"></div>
+      <div id="perm" class="panel"></div>
+      <div id="analysis" class="panel"></div>
+      <div id="matrix" class="panel"></div>
+      <div id="spectra" class="panel"></div>
+      <div id="compare" class="panel"></div>
+    </aside>
+  </div>
+</main>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const PALETTE = ["#4cc9f0","#f72585","#ffd166","#06d6a0","#a78bfa","#ff7b54","#70e1f5","#c77dff","#90be6d","#f9844a","#43aa8b","#577590","#f15bb5","#fee440","#00bbf9","#9b5de5"];
+const NODE_PALETTE = ["#8bd3ff","#ff9ac5","#ffe08a","#78e7bb","#c8b6ff","#ffae91","#8fe8f7","#d5a2ff","#b8e58c","#ffad80","#82d5c0","#8ca9ff"];
+
+const $ = id => document.getElementById(id);
+const svg = $("svg"), scene = $("scene");
+let edges=[], labels=[], vertices=[], positions={}, originalPositions={}, mapping={}, selectedVertex=null, selectedEdge=null;
+let zoom=1, pan={x:0,y:0}, animating=false, compareMode=false, lastPermutationText="";
+let drag=null, searchTerm="";
+let viewMode="hull";
+
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function keyEdge(a){return [...a].sort((x,y)=>x-y).join(",");}
+function parseEdges(text){
+  const cleaned=text.replace(/\r/g,"").trim();
+  if(!cleaned) throw new Error("Edge list is empty.");
+  let chunks=[];
+  const matches=cleaned.match(/\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}/g);
+  if(matches && matches.join("").replace(/[\s,;]/g,"").length === cleaned.replace(/[\s,;]/g,"").length) chunks=matches;
+  else chunks=cleaned.split(/\n|;/).map(s=>s.trim()).filter(Boolean);
+  const out=[];
+  for(const chunk of chunks){
+    const nums=(chunk.match(/-?\d+/g)||[]).map(Number);
+    if(nums.length<2) throw new Error("Could not parse hyperedge: "+chunk);
+    const uniq=[...new Set(nums)];
+    if(uniq.length!==nums.length) throw new Error("Duplicate vertex in hyperedge: "+chunk);
+    out.push(uniq);
+  }
+  return out;
+}
+function parseLabels(n){
+  const raw=$("labelInput").value.split(",").map(s=>s.trim()).filter(Boolean);
+  const out=[];
+  for(let i=0;i<n;i++) out.push(raw[i] || `H${i+1}`);
+  return out;
+}
+function inferVertices(es){
+  const set=new Set(es.flat());
+  const max=Math.max(...set);
+  for(let i=0;i<=max;i++) if(!set.has(i)) throw new Error(`Vertex ${i} is missing. Vertex IDs must be consecutive 0..${max}.`);
+  return Array.from({length:max+1},(_,i)=>i);
+}
+function initialLayout(){
+  const w=900,h=700,cx=w/2,cy=h/2,r=Math.min(w,h)*.31;
+  positions={};
+  vertices.forEach((v,i)=>{
+    const a=-Math.PI/2+i*2*Math.PI/vertices.length;
+    positions[v]={x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};
+  });
+  originalPositions=clonePositions(positions);
+}
+function radialLayout(){
+  const w=900,h=700,cx=w/2,cy=h/2,r=Math.min(w,h)*.31;
+  const degree=Object.fromEntries(vertices.map(v=>[v,0]));
+  edges.forEach(e=>e.forEach(v=>degree[v]++));
+  const order=[...vertices].sort((a,b)=>degree[b]-degree[a]);
+  const next={};
+  order.forEach((v,i)=>{
+    const a=-Math.PI/2+i*2*Math.PI/order.length;
+    next[v]={x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};
+  });
+  positions=next;
+}
+function clonePositions(p){return JSON.parse(JSON.stringify(p));}
+function convexHull(points){
+  if(points.length<=2) return points;
+  const pts=points.map(p=>({x:p.x,y:p.y}));
+  pts.sort((a,b)=>a.x-b.x || a.y-b.y);
+  const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
+  const lo=[];
+  for(const p of pts){while(lo.length>=2&&cross(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p);}
+  const hi=[];
+  for(let i=pts.length-1;i>=0;i--){const p=pts[i];while(hi.length>=2&&cross(hi[hi.length-2],hi[hi.length-1],p)<=0)hi.pop();hi.push(p);}
+  hi.pop();lo.pop();return lo.concat(hi);
+}
+function centroid(points){
+  const x=points.reduce((s,p)=>s+p.x,0)/points.length,y=points.reduce((s,p)=>s+p.y,0)/points.length;
+  return {x,y};
+}
+function transformPoint(p){return {x:p.x*zoom+pan.x,y:p.y*zoom+pan.y};}
+function svgEl(tag,attrs={}){
+  const e=document.createElementNS("http://www.w3.org/2000/svg",tag);
+  for(const [k,v] of Object.entries(attrs)) e.setAttribute(k,v);
+  return e;
+}
+function render(){
+  scene.innerHTML="";
+  if(viewMode==="incidence") renderIncidence();
+  else renderHypergraph();
+  updatePanels();
+}
+function isSearchMatch(kind,id){
+  if(!searchTerm)return true;
+  const q=searchTerm.toLowerCase();
+  if(kind==="v")return String(id).includes(q);
+  return String(labels[id]).toLowerCase().includes(q) || `h${id+1}`.includes(q);
+}
+function renderHypergraph(){
+  const edgeLayer=svgEl("g"), nodeLayer=svgEl("g");
+  scene.appendChild(edgeLayer);scene.appendChild(nodeLayer);
+  edges.forEach((edge,i)=>{
+    const pts=edge.map(v=>transformPoint(positions[v]));
+    const col=PALETTE[i%PALETTE.length];
+    const hit=isSearchMatch("e",i);
+    let shape, c;
+    if(pts.length===1){
+      c=pts[0]; shape=svgEl("circle",{cx:c.x,cy:c.y,r:30,fill:col,"fill-opacity":.12,stroke:col,"stroke-width":2});
+    }else if(pts.length===2){
+      const a=pts[0],b=pts[1],mx=(a.x+b.x)/2,my=(a.y+b.y)/2,len=Math.hypot(b.x-a.x,b.y-a.y);
+      shape=svgEl("ellipse",{cx:mx,cy:my,rx:len/2+28,ry:28,fill:col,"fill-opacity":.12,stroke:col,"stroke-width":2,transform:`rotate(${Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI} ${mx} ${my})`});
+      c={x:mx,y:my};
+    }else{
+      const hull=convexHull(pts);
+      c=centroid(pts);
+      shape=svgEl("polygon",{points:hull.map(p=>`${p.x},${p.y}`).join(" "),fill:col,"fill-opacity":.12,stroke:col,"stroke-width":2});
+    }
+    shape.classList.add("edge");
+    shape.style.opacity=(selectedEdge===null && selectedVertex===null && hit) || selectedEdge===i || (selectedVertex!==null && edges[i].includes(selectedVertex)) ? "1" : ".18";
+    if(!hit)shape.style.opacity=".06";
+    shape.addEventListener("click",ev=>{ev.stopPropagation();selectedEdge=i;selectedVertex=null;render();});
+    edgeLayer.appendChild(shape);
+    if($("showLabels").checked){
+      const t=svgEl("text",{x:c.x,y:c.y,fill:"#fff","font-size":13,"font-weight":800,"text-anchor":"middle","dominant-baseline":"middle","pointer-events":"none"});
+      t.textContent=labels[i];
+      t.setAttribute("paint-order","stroke");t.setAttribute("stroke","#07101e");t.setAttribute("stroke-width","4");
+      edgeLayer.appendChild(t);
+    }
+  });
+  vertices.forEach(v=>{
+    const p=transformPoint(positions[v]), col=NODE_PALETTE[v%NODE_PALETTE.length];
+    const moved=mapping[v]!==v;
+    const fixed=mapping[v]===v;
+    const match=isSearchMatch("v",v);
+    const relevant=selectedVertex===v || (selectedEdge!==null&&edges[selectedEdge].includes(v));
+    const opacity=(!searchTerm || match) ? ((selectedVertex===null&&selectedEdge===null)||relevant ? 1:.35) : .06;
+    const g=svgEl("g",{class:"node",transform:`translate(${p.x} ${p.y})`});
+    if(($("showMoved").checked&&moved)||($("showFixed").checked&&fixed)){
+      const ring=svgEl("circle",{r:18,fill:"none",stroke:moved?"#ff7b54":"#48d597","stroke-width":3,"stroke-dasharray":moved?"4 3":"none"});
+      g.appendChild(ring);
+    }
+    const c=svgEl("circle",{r:11,fill:col,stroke:"#fff","stroke-width":1.5,opacity});
+    g.appendChild(c);
+    if($("showLabels").checked){
+      const t=svgEl("text",{y:25,fill:"#eef3ff","font-size":12,"font-weight":700,"text-anchor":"middle",opacity});
+      t.textContent=v;g.appendChild(t);
+    }
+    g.style.cursor="grab";
+    g.addEventListener("pointerdown",ev=>startDrag(ev,v));
+    g.addEventListener("click",ev=>{ev.stopPropagation();selectedVertex=v;selectedEdge=null;render();});
+    nodeLayer.appendChild(g);
+  });
+}
+function renderIncidence(){
+  const edgeLayer=svgEl("g"), nodeLayer=svgEl("g");scene.append(edgeLayer,nodeLayer);
+  const left=150,right=700, top=80,bottom=620;
+  const vStep=(bottom-top)/Math.max(1,vertices.length-1), eStep=(bottom-top)/Math.max(1,edges.length-1);
+  const vp={};vertices.forEach((v,i)=>vp[v]={x:left,y:top+i*vStep});
+  const ep={};edges.forEach((e,i)=>ep[i]={x:right,y:top+i*eStep});
+  edges.forEach((e,i)=>{
+    e.forEach(v=>{
+      const l=svgEl("line",{x1:vp[v].x,y1:vp[v].y,x2:ep[i].x,y2:ep[i].y,stroke:PALETTE[i%PALETTE.length],"stroke-opacity":.3});
+      edgeLayer.appendChild(l);
+    });
+    const c=svgEl("circle",{cx:ep[i].x,cy:ep[i].y,r:15,fill:PALETTE[i%PALETTE.length]});
+    c.addEventListener("click",()=>{selectedEdge=i;selectedVertex=null;render();});
+    edgeLayer.appendChild(c);
+    const t=svgEl("text",{x:ep[i].x+24,y:ep[i].y+4,fill:"#fff","font-size":12});t.textContent=labels[i];edgeLayer.appendChild(t);
+  });
+  vertices.forEach(v=>{
+    const c=svgEl("circle",{cx:vp[v].x,cy:vp[v].y,r:13,fill:NODE_PALETTE[v%NODE_PALETTE.length]});
+    c.addEventListener("click",()=>{selectedVertex=v;selectedEdge=null;render();});nodeLayer.appendChild(c);
+    const t=svgEl("text",{x:vp[v].x-25,y:vp[v].y+4,fill:"#fff","font-size":12,"text-anchor":"end"});t.textContent=v;nodeLayer.appendChild(t);
+  });
+}
+function startDrag(ev,v){
+  if(viewMode==="incidence")return;
+  ev.preventDefault();drag={v,start:{...positions[v]}};
+  const move=e=>{
+    const r=svg.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width*900;
+    const y=(e.clientY-r.top)/r.height*700;
+    positions[v]={x:(x-pan.x)/zoom,y:(y-pan.y)/zoom};render();
+  };
+  const up=()=>{drag=null;window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);};
+  window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);
+}
+function parsePermutation(text=$("permInput").value){
+  const map=Object.fromEntries(vertices.map(v=>[v,v]));
+  const trimmed=text.trim(); if(!trimmed)return map;
+  const used=new Set();
+  const cycles=trimmed.split(";").map(s=>s.trim()).filter(Boolean);
+  for(const ctext of cycles){
+    const c=ctext.split(",").map(s=>s.trim()).filter(Boolean).map(Number);
+    if(c.length<2)throw new Error(`Cycle "${ctext}" needs at least two vertices.`);
+    for(const v of c){
+      if(!Number.isInteger(v)||!vertices.includes(v))throw new Error(`Invalid vertex ${v} in permutation.`);
+      if(used.has(v))throw new Error(`Vertex ${v} occurs in more than one cycle.`);
+      used.add(v);
+    }
+    c.forEach((v,i)=>map[v]=c[(i+1)%c.length]);
+  }
+  return map;
+}
+function inverseMap(m){const inv={};for(const v of vertices)inv[m[v]]=v;return inv;}
+function compose(a,b){const c={};vertices.forEach(v=>c[v]=a[b[v]]);return c;}
+function powerMap(m,n){
+  let out=Object.fromEntries(vertices.map(v=>[v,v]));
+  let base=m, k=Math.abs(n);
+  if(n<0)base=inverseMap(m);
+  while(k){if(k&1)out=compose(base,out);base=compose(base,base);k>>=1;}
+  return out;
+}
+function mapToCycles(m){
+  const seen=new Set(), out=[];
+  for(const v of vertices)if(!seen.has(v)){
+    const cyc=[];let x=v;
+    while(!seen.has(x)){seen.add(x);cyc.push(x);x=m[x];}
+    if(cyc.length>1)out.push(cyc.join(","));
+  }
+  return out.length?out.join(";"):"identity";
+}
+function permutationTable(m){
+  return `<table><thead><tr><th>v</th><th>→</th><th>Status</th></tr></thead><tbody>`+
+    vertices.map(v=>`<tr><td>${v}</td><td>${m[v]}</td><td>${m[v]===v?'<span class="badge good">fixed</span>':'<span class="badge warn">moved</span>'}</td></tr>`).join("")+
+    `</tbody></table>`;
+}
+function applyPermutation(animate=true){
+  try{
+    const m=parsePermutation();mapping=m;lastPermutationText=$("permInput").value.trim();
+    const from=clonePositions(positions), to={};
+    vertices.forEach(v=>to[v]=from[m[v]]);
+    if(!animate){positions=to;render();return;}
+    const start=performance.now(), dur=+$("speedInput").value;
+    animating=true;
+    function frame(now){
+      const t=Math.min(1,(now-start)/dur), e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+      vertices.forEach(v=>positions[v]={x:from[v].x+(to[v].x-from[v].x)*e,y:from[v].y+(to[v].y-from[v].y)*e});
+      render();
+      if(t<1)requestAnimationFrame(frame);else{animating=false;positions=to;render();}
+    }
+    requestAnimationFrame(frame);
+  }catch(e){alert(e.message);}
+}
+function showPermutationPreview(){
+  try{mapping=parsePermutation();setTab("perm");render();}
+  catch(e){alert(e.message);}
+}
+function edgeMapForPermutation(m){
+  const transformed=edges.map(e=>[...e].map(v=>m[v]).sort((a,b)=>a-b));
+  const lookup=new Map(edges.map((e,i)=>[keyEdge(e),i]));
+  return transformed.map((e,i)=>lookup.has(keyEdge(e))?lookup.get(keyEdge(e)):null);
+}
+function isAutomorphism(m){
+  const original=new Set(edges.map(keyEdge));
+  const transformed=new Set(edges.map(e=>keyEdge(e.map(v=>m[v]))));
+  if(original.size!==transformed.size)return false;
+  for(const k of original)if(!transformed.has(k))return false;
+  return true;
+}
+function canonicalSignature(){
+  const es=edges.map(e=>keyEdge(e)).sort();
+  const degrees=vertices.map(v=>edges.filter(e=>e.includes(v)).length).sort((a,b)=>a-b);
+  return `V${vertices.length}|E${edges.length}|S${es.join(";")}|D${degrees.join(",")}`;
+}
+function analyze(){
+  const degrees=Object.fromEntries(vertices.map(v=>[v,0]));edges.forEach(e=>e.forEach(v=>degrees[v]++));
+  const sizes=edges.map(e=>e.length), uniqueSizes=[...new Set(sizes)];
+  const regular=new Set(Object.values(degrees)).size===1;
+  const uniform=uniqueSizes.length===1;
+  const duplicates=edges.length-new Set(edges.map(keyEdge)).size;
+  const isolated=vertices.filter(v=>degrees[v]===0);
+  const seen=new Set(), comps=[];
+  const adj=Object.fromEntries(vertices.map(v=>[v,new Set()]));
+  edges.forEach(e=>e.forEach(a=>e.forEach(b=>{if(a!==b)adj[a].add(b)})));
+  vertices.forEach(v=>{if(seen.has(v))return;const q=[v],comp=[];seen.add(v);while(q.length){const x=q.shift();comp.push(x);adj[x].forEach(y=>{if(!seen.has(y)){seen.add(y);q.push(y)}})}comps.push(comp)});
+  return {degrees,sizes,uniqueSizes,regular,uniform,duplicates,isolated,components:comps};
+}
+function updatePanels(){
+  const a=analyze(), m=mapping;
+  const moved=vertices.filter(v=>m[v]!==v), fixed=vertices.filter(v=>m[v]===v);
+  $("overview").innerHTML=`
+    <div class="statgrid">
+      <div class="stat"><b>${vertices.length}</b><span>Vertices</span></div>
+      <div class="stat"><b>${edges.length}</b><span>Hyperedges</span></div>
+      <div class="stat"><b>${a.uniform?"Yes":"No"}</b><span>Uniform</span></div>
+      <div class="stat"><b>${a.regular?"Yes":"No"}</b><span>Regular</span></div>
+    </div>
+    <div class="help" style="margin-top:10px"><b>Selected:</b> ${selectedVertex!==null?"vertex "+selectedVertex:selectedEdge!==null?labels[selectedEdge]:"nothing"}<br><b>Permutation:</b> ${esc(mapToCycles(m))}</div>
+    <div class="legend">${edges.map((e,i)=>`<div class="legend-item"><span class="swatch" style="background:${PALETTE[i%PALETTE.length]}"></span>${esc(labels[i])}</div>`).join("")}</div>`;
+  $("perm").innerHTML=`<div class="help"><b>Cycle form:</b> ${esc(mapToCycles(m))}<br><b>Moved:</b> ${moved.length} · <b>Fixed:</b> ${fixed.length}<br><b>Inverse:</b> ${esc(mapToCycles(inverseMap(m)))}</div><div style="margin-top:8px">${permutationTable(m)}</div>`;
+  $("analysis").innerHTML=`
+    <div class="statgrid">
+      <div class="stat"><b>${Math.min(...a.sizes)}</b><span>Min edge size</span></div>
+      <div class="stat"><b>${Math.max(...a.sizes)}</b><span>Max edge size</span></div>
+      <div class="stat"><b>${(a.sizes.reduce((x,y)=>x+y,0)/a.sizes.length).toFixed(2)}</b><span>Avg edge size</span></div>
+      <div class="stat"><b>${a.components.length}</b><span>Components</span></div>
+    </div>
+    <h3 style="margin:13px 0 7px">Vertex degrees</h3>
+    <table><thead><tr><th>Vertex</th><th>Degree</th></tr></thead><tbody>${vertices.map(v=>`<tr><td>${v}</td><td>${a.degrees[v]}</td></tr>`).join("")}</tbody></table>
+    <h3 style="margin:13px 0 7px">Properties</h3>
+    <div class="small">Uniform: ${a.uniform?"yes":"no"} · Regular: ${a.regular?"yes":"no"} · Duplicate hyperedges: ${a.duplicates} · Isolated vertices: ${a.isolated.length? a.isolated.join(", "):"none"} · Linearity: ${checkLinear()?"yes":"no"}</div>`;
+  renderMatrixPanel();
+  renderSpectraPanel();
+  const em=edgeMapForPermutation(m);
+  $("compare").innerHTML=`
+    <div class="help"><b>Automorphism:</b> ${isAutomorphism(m)?'<span class="badge good">YES</span>':'<span class="badge bad">NO</span>'}<br>
+    <b>Edge mapping:</b> ${em.map((x,i)=>`${esc(labels[i])}→${x===null?"∅":esc(labels[x])}`).join(" · ")}</div>
+    <h3 style="margin:13px 0 7px">Moved vertices</h3>
+    <div class="small">${moved.length?moved.map(v=>`${v}→${m[v]}`).join(", "):"None — identity permutation."}</div>`;
+}
+function checkLinear(){
+  for(let i=0;i<edges.length;i++)for(let j=i+1;j<edges.length;j++){
+    const s=new Set(edges[i]), common=edges[j].filter(v=>s.has(v));if(common.length>1)return false;
+  }return true;
+}
+function renderMatrixPanel(){
+  $("matrix").innerHTML=`<div class="matrix"><table><thead><tr><th class="rowhead">v \\ H</th>${edges.map((_,i)=>`<th>${esc(labels[i])}</th>`).join("")}</tr></thead><tbody>${vertices.map(v=>`<tr><th class="rowhead">${v}</th>${edges.map(e=>`<td>${e.includes(v)?1:0}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function intersectionMatrix(){
+  return `<div class="matrix"><table><thead><tr><th class="rowhead">∩</th>${edges.map((_,i)=>`<th>${i+1}</th>`).join("")}</tr></thead><tbody>`+
+    edges.map((e,i)=>`<tr><th class="rowhead">${i+1}</th>${edges.map((f,j)=>`<td>${e.filter(v=>f.includes(v)).length}</td>`).join("")}</tr>`).join("")+
+    `</tbody></table></div>`;
+}
+
+function banerjeeAdjacency(){
+  const n=vertices.length;
+  const A=Array.from({length:n},()=>Array(n).fill(0));
+  edges.forEach(e=>{
+    const k=e.length;
+    if(k<2)return;
+    const w=1/(k-1);
+    for(let a=0;a<e.length;a++) for(let b=a+1;b<e.length;b++){
+      const i=e[a],j=e[b];
+      A[i][j]+=w; A[j][i]+=w;
+    }
+  });
+  return A;
+}
+function matrixDegreesFromA(A){
+  return A.map(row=>row.reduce((s,x)=>s+x,0));
+}
+function jacobiEigenvalues(input, maxSweeps=100, tol=1e-11){
+  const n=input.length;
+  if(!n)return [];
+  const A=input.map(r=>r.slice());
+  for(let sweep=0;sweep<maxSweeps;sweep++){
+    let p=0,q=1,max=0;
+    for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
+      const v=Math.abs(A[i][j]);
+      if(v>max){max=v;p=i;q=j;}
+    }
+    if(max<tol)break;
+    const app=A[p][p], aqq=A[q][q], apq=A[p][q];
+    const phi=0.5*Math.atan2(2*apq,aqq-app);
+    const c=Math.cos(phi),s=Math.sin(phi);
+    for(let k=0;k<n;k++){
+      if(k!==p&&k!==q){
+        const aik=A[k][p], akq=A[k][q];
+        A[k][p]=A[p][k]=c*aik-s*akq;
+        A[k][q]=A[q][k]=s*aik+c*akq;
+      }
+    }
+    A[p][p]=c*c*app-2*s*c*apq+s*s*aqq;
+    A[q][q]=s*s*app+2*s*c*apq+c*c*aqq;
+    A[p][q]=A[q][p]=0;
+  }
+  return A.map((r,i)=>r[i]).sort((a,b)=>b-a);
+}
+function formatNumber(x){
+  const y=Math.abs(x)<1e-10?0:x;
+  return y.toFixed(8).replace(/\.?0+$/,"");
+}
+function renderSpectraPanel(){
+  const A=banerjeeAdjacency();
+  const vals=jacobiEigenvalues(A);
+  const rho=vals.length?Math.max(...vals.map(x=>Math.abs(x))):0;
+  const rowDegrees=matrixDegreesFromA(A);
+  const degreeInfo=vertices.map((v,i)=>`${v}: ${formatNumber(rowDegrees[i])}`).join(" · ");
+  $("spectra").innerHTML=`
+    <div class="help">
+      <b>Banerjee adjacency matrix</b><br>
+      For ${i18nEdgeText()} hyperedge e, each pair i,j∈e contributes
+      <b>1/(|e|−1)</b> to A<sub>ij</sub>. Contributions from all common hyperedges are summed.
+      Thus the row sum at vertex i equals its hypergraph degree.
+    </div>
+    <div class="statgrid" style="margin-top:9px">
+      <div class="stat"><b>${vals.length}</b><span>Eigenvalues</span></div>
+      <div class="stat"><b>${formatNumber(rho)}</b><span>Spectral radius</span></div>
+      <div class="stat"><b>${formatNumber(Math.max(...rowDegrees))}</b><span>Max degree</span></div>
+      <div class="stat"><b>${formatNumber(Math.min(...rowDegrees))}</b><span>Min degree</span></div>
+    </div>
+    <h3 style="margin:13px 0 7px">Adjacency spectrum</h3>
+    <div class="help" style="font-family:ui-monospace,monospace">${vals.map((x,i)=>`λ${i+1} = ${formatNumber(x)}`).join("<br>")}</div>
+    <h3 style="margin:13px 0 7px">Banerjee adjacency matrix A</h3>
+    <div class="matrix"><table><thead><tr><th class="rowhead">v</th>${vertices.map(v=>`<th>${v}</th>`).join("")}</tr></thead><tbody>
+      ${A.map((row,i)=>`<tr><th class="rowhead">${i}</th>${row.map(x=>`<td>${formatNumber(x)}</td>`).join("")}</tr>`).join("")}
+    </tbody></table></div>
+    <div class="footer-note">Row sums: ${degreeInfo}</div>
+  `;
+}
+function i18nEdgeText(){ return edges.length===1 ? "each" : "each"; }
+
+function setTab(name){
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.id===name));
+}
+function fitView(){
+  zoom=1;pan={x:0,y:0};render();
+}
+function exportSVG(){
+  const copy=svg.cloneNode(true);
+  copy.setAttribute("xmlns","http://www.w3.org/2000/svg");
+  copy.setAttribute("width","900");copy.setAttribute("height","700");
+  const blob=new Blob([new XMLSerializer().serializeToString(copy)],{type:"image/svg+xml"});
+  downloadBlob(blob,"hypergraph.svg");
+}
+function exportPNG(){
+  const xml=new XMLSerializer().serializeToString(svg.cloneNode(true));
+  const blob=new Blob([xml],{type:"image/svg+xml;charset=utf-8"}), url=URL.createObjectURL(blob), img=new Image();
+  img.onload=()=>{
+    const c=document.createElement("canvas");c.width=1800;c.height=1400;
+    const ctx=c.getContext("2d");ctx.fillStyle="#0b1020";ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,1800,1400);
+    c.toBlob(b=>{downloadBlob(b,"hypergraph.png");URL.revokeObjectURL(url)});
+  };img.src=url;
+}
+function downloadBlob(blob,name){
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function exportJSON(){
+  const data={edges,labels,permutation:$("permInput").value,positions,viewMode};
+  downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),"hypergraph.json");
+}
+function loadJSON(data){
+  edges=data.edges.map(e=>e.map(Number));labels=data.labels||edges.map((_,i)=>`H${i+1}`);
+  $("edgeInput").value=edges.map(e=>`(${e.join(",")})`).join("\n");$("labelInput").value=labels.join(",");
+  vertices=inferVertices(edges);positions=data.positions||{};if(!Object.keys(positions).length)initialLayout();
+  originalPositions=clonePositions(positions);mapping=parsePermutation(data.permutation||"");$("permInput").value=data.permutation||"";viewMode=data.viewMode||"hull";$("modeSelect").value=viewMode;render();
+}
+function generate(){
+  try{
+    edges=parseEdges($("edgeInput").value);labels=parseLabels(edges.length);vertices=inferVertices(edges);
+    mapping=Object.fromEntries(vertices.map(v=>[v,v]));selectedVertex=null;selectedEdge=null;compareMode=false;initialLayout();render();
+  }catch(e){alert(e.message);}
+}
+function neighbors(){
+  if(selectedVertex===null){alert("Select a vertex first.");return;}
+  const ns=new Set();edges.filter(e=>e.includes(selectedVertex)).forEach(e=>e.forEach(v=>{if(v!==selectedVertex)ns.add(v)}));
+  alert(`Neighbors of vertex ${selectedVertex}: ${[...ns].sort((a,b)=>a-b).join(", ")||"none"}`);
+}
+function setup(){
+  $("generateBtn").onclick=generate;$("sampleBtn").onclick=()=>{$("edgeInput").value=`(0,1,2,11)
+(0,3,5,6)
+(0,7,9,10)
+(1,3,4,10)
+(1,6,7,8)
+(2,3,8,9)
+(2,4,5,7)
+(4,6,9,11)
+(5,8,10,11)`;$("labelInput").value="H1,H2,H3,H4,H5,H6,H7,H8,H9";$("permInput").value="1,2,3;5,7";generate()};
+  $("applyBtn").onclick=()=>applyPermutation(true);$("previewBtn").onclick=showPermutationPreview;
+  $("reverseBtn").onclick=()=>{try{$("permInput").value=mapToCycles(inverseMap(parsePermutation()));showPermutationPreview()}catch(e){alert(e.message)}};
+  $("powerBtn").onclick=()=>{try{const p=+$("powerInput").value||1;$("permInput").value=mapToCycles(powerMap(parsePermutation(),p));showPermutationPreview()}catch(e){alert(e.message)}};
+  $("speedInput").oninput=e=>$("speedValue").textContent=(+e.target.value/1000).toFixed(2)+" s";
+  $("zoomIn").onclick=()=>{zoom=Math.min(2.5,zoom*1.15);render()};$("zoomOut").onclick=()=>{zoom=Math.max(.5,zoom/1.15);render()};$("zoomReset").onclick=fitView;$("fitBtn").onclick=fitView;$("layoutBtn").onclick=()=>{radialLayout();render()};
+  $("compareBtn").onclick=()=>{compareMode=!compareMode;setTab("compare");render()};
+  $("modeSelect").onchange=e=>{viewMode=e.target.value;render()};["showLabels","showFixed","showMoved"].forEach(id=>$(id).onchange=render);
+  $("searchInput").oninput=e=>{searchTerm=e.target.value.trim();render()};$("clearSelection").onclick=()=>{selectedVertex=null;selectedEdge=null;searchTerm="";$("searchInput").value="";render()};$("neighborsBtn").onclick=neighbors;
+  $("statsBtn").onclick=()=>setTab("analysis");$("matrixBtn").onclick=()=>setTab("matrix");$("spectraBtn").onclick=()=>setTab("spectra");$("intersectionBtn").onclick=()=>{$("analysis").innerHTML=intersectionMatrix();setTab("analysis")};
+  $("autoBtn").onclick=()=>{try{mapping=parsePermutation();setTab("compare");render();alert(isAutomorphism(mapping)?"The permutation is an automorphism of the unlabeled hypergraph.":"The permutation is not an automorphism of the unlabeled hypergraph.")}catch(e){alert(e.message)}};
+  $("isoBtn").onclick=()=>alert("Canonical signature:\\n\\n"+canonicalSignature());
+  $("presentationBtn").onclick=()=>document.documentElement.requestFullscreen?.();
+  $("svgExport").onclick=exportSVG;$("pngExport").onclick=exportPNG;$("jsonExport").onclick=exportJSON;$("jsonImportBtn").onclick=()=>$("jsonFile").click();
+  $("jsonFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{loadJSON(JSON.parse(r.result))}catch(err){alert("Invalid JSON: "+err.message)}};r.readAsText(f)};
+  document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+  svg.addEventListener("click",()=>{selectedVertex=null;selectedEdge=null;render()});
+  generate();
+}
+setup();
+})();
+</script>
+</body>
+</html>
