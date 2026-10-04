@@ -9,6 +9,10 @@ It combines interactive visualization with tools for **permutations, automorphis
 > **No installation. No frameworks. No external dependencies. Just open the HTML file and explore.**
 
 ---
+## 🌐 Live Demo
+
+[**Launch Hypergraph Studio →**]((https://debjit-math.github.io/hypergraph-studio/))
+
 
 ## ✨ What can you do?
 
