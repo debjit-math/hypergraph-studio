@@ -8,8 +8,11 @@ It combines interactive visualization with tools for **permutations, automorphis
 
 > **No installation. No frameworks. No external dependencies. Just open the HTML file and explore.**
 
-[![Live Demo](https://img.shields.io/badge/🚀%20Live-Demo-blue)]((https://debjit-math.github.io/hypergraph-studio/))
+## 🌐 Live Demo
 
+🚀 **[Open Hypergraph Studio](https://debjit-math.github.io/hypergraph-studio/)**
+
+Try the interactive hypergraph visualization directly in your browser — no installation required.
 
 ## ✨ What can you do?
 
